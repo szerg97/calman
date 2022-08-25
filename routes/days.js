@@ -61,7 +61,20 @@ router.get('/', auth, async (req, res) => {
         const days = await Day.find();
         res.json(days);
     } catch (err) {
-        console.error(err.messcarbohydrate);
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET api/days
+// @desc    Get all days
+// @access  Private
+router.get('/:name', auth, async (req, res) => {
+    try {
+        const day = await Day.findOne({name: req.params.name});
+        res.json(day);
+    } catch (err) {
+        console.error(err.message);
         res.status(500).send('Server Error');
     }
 });
