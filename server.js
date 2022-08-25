@@ -10,7 +10,10 @@ app.use(express.json({extended: false}));
 app.get('/', (req, res) => res.send('API Running'));
 
 app.use('/api/users', require('./routes/users'));
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
+app.use('/api/food', require('./routes/food'));
+app.use('/api/days', require('./routes/days'));
 
 const PORT = process.env.PORT || 5000;
 
