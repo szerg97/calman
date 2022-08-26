@@ -66,13 +66,26 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-// @route   GET api/days
-// @desc    Get all days
+// @route   GET api/days/:name
+// @desc    Get one day
 // @access  Private
 router.get('/:name', auth, async (req, res) => {
     try {
         const day = await Day.findOne({name: req.params.name});
         res.json(day);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   DELETE api/days/:name
+// @desc    Delete one day
+// @access  Private
+router.delete('/:name', auth, async (req, res) => {
+    try {
+        await Day.findOneAndRemove({name: req.params.name});
+        res.json({msg: 'Day deleted'});
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -135,8 +148,8 @@ router.put('/meals/:type/consumed', [auth, [
     const newCons = {
         food: foode,
         quantity,
-        calorie: (100 / quantity * foode.calorie),
-        carbohydrate: (100 / quantity * foode.carbohydrate)
+        calorie: (quantity / 100 * foode.calorie),
+        carbohydrate: (quantity / 100 * foode.carbohydrate)
     };
 
     try {
@@ -146,8 +159,9 @@ router.put('/meals/:type/consumed', [auth, [
         });
         const meal = day.meals.find(x => x.type === type);
         meal.consumed.unshift(newCons);
-        meal.calorieTotal = meal.calorieTotal + newCons.calorie;
-        meal.carbohydrateTotal = meal.carbohydrateTotal + newCons.carbohydrate;
+        const vals = updateValues(meal.consumed);
+        meal.calorieTotal = vals[0];
+        meal.carbohydrateTotal = vals[1];
         await day.save();
         res.json(day);
     } catch (err) {
@@ -155,5 +169,47 @@ router.put('/meals/:type/consumed', [auth, [
         res.status(500).send('Server Error');
     }
 });
+
+// @route   PUT api/days/meals/:type/consumed/:id
+// @desc    Delete consumed from meal
+// @access  Private
+router.put('/meals/:type/consumed/:id', [auth, [
+    check('type', 'Type is required').not().isEmpty(),
+]], async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        return res.status(400).json({errors: errors.array()});
+    }
+
+    const type = req.params.type;
+    const id = req.params.id;
+
+    try {
+        
+        const day = await Day.findOne({
+            user: req.user.id,
+            name: new Date().toISOString().split('T')[0]
+        });
+        const meal = day.meals.find(x => x.type === type);
+
+        meal.consumed.shift({id: id});
+        const vals = updateValues(meal.consumed);
+        meal.calorieTotal = vals[0];
+        meal.carbohydrateTotal = vals[1];
+        await day.save();
+        res.json(day);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+const updateValues = (consumed) => {
+    let calorieSum = 0;
+    consumed.forEach(x => {calorieSum += x.calorie});
+    let carboSum = 0;
+    consumed.forEach(x => {carboSum += x.carbohydrate});
+    return [calorieSum, carboSum];
+}
 
 module.exports = router;
